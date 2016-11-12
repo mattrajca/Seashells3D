@@ -20,7 +20,8 @@ typedef struct {
 #define SUBDIVISIONS 250
 #define COMPONENTS 3
 
-SCNGeometry *CreateSeashell()
+// First example from: https://reference.wolfram.com/language/ref/ParametricPlot3D.html
+SCNGeometry *CreateBlob()
 {
 	// Allocate enough space for our vertices
 	const NSInteger vertexCount = (SUBDIVISIONS + 1) * (SUBDIVISIONS + 1);
@@ -28,27 +29,29 @@ SCNGeometry *CreateSeashell()
 
 	// Calculate the uv step interval given the number of subdivisions
 	const float uStep = 2.0f * M_PI / SUBDIVISIONS; // (2pi - 0) / subdivisions
-	const float vStep = 4.0f * M_PI / SUBDIVISIONS; // (2pi - -2pi) / subdivisions
+	const float vStep = 2.0f * M_PI / SUBDIVISIONS; // (pi - -pi) / subdivisions
 
 	Vertex *currentVertex = vertices;
 	float u = 0;
 
 	// Loop through our uv-space, generating 3D vertices.
 	for (NSInteger i = 0; i <= SUBDIVISIONS; i++, u += uStep) {
-		float v = -2 * M_PI;
+		float v = -M_PI;
 
 		for (NSInteger j = 0; j <= SUBDIVISIONS; j++, v += vStep, currentVertex++) {
 			// Vertex calculations.
-			currentVertex->x = 5/4.0f * (1-v/(2*M_PI)) * cos(2*v) * (1 + cos(u)) + cos(2*v);
-			currentVertex->y = 5/4.0f * (1-v/(2*M_PI)) * sin(2*v) * (1 + cos(u)) + sin(2*v);
-			currentVertex->z = 5*v / M_PI + 5/4.0f * (1 - v/(2*M_PI)) * sin(u) + 15;
+			currentVertex->x = cosf(u);
+			currentVertex->y = sinf(u) + cosf(v);
+			currentVertex->z = sinf(v);
 
 			// Normal calculations.
-			currentVertex->nx = (-5*(2*M_PI - v)*(2*(20 + 18*M_PI - 5*v)*cos(u - 2*v) + 5*(2*M_PI - v)*cos(2*(u - v)) + 20*M_PI*cos(2*v) - 10*v*cos(2*v) + 10*M_PI*cos(2*(u + v)) - 5*v*cos(2*(u + v)) - 40*cos(u + 2*v) + 36*M_PI*cos(u + 2*v) - 10*v*cos(u + 2*v) + 5*sin(u - 2*v) - 10*sin(2*v) - 5*sin(u + 2*v)))/(128*pow(M_PI,2));
-
-			currentVertex->ny = (-5*(2*M_PI - v)*(5*pow(cos(v),2)*(1 + cos(u) - 8*sin(u)) - 5*sin(v)*(4*v*pow(cos(u),2)*cos(v) + (1 + cos(u) - 8*sin(u))*sin(v)) + 2*cos(u)*(18*M_PI - 5*v + 10*M_PI*cos(u))*sin(2*v)))/(64*pow(M_PI,2));
-
-			currentVertex->nz = (-5*(2*M_PI - v)*(18*M_PI - 5*v + 5*(2*M_PI - v)*cos(u))*sin(u))/(32*pow(M_PI,2));
+			// dx/du, dy/du, dz/du = (-sin(u), cos(u), 0) = T1
+			// dx/dv, dy/dv, dz/dv = (0, -sin(v), cos(v)) = T2
+			// Cross product T1 X T2:
+			// (cos(u) cos(v), sin(u) cos(v), sin(u) sin(v))
+			currentVertex->nx = cosf(u) * cosf(v);
+			currentVertex->ny = sinf(u) * cosf(v);
+			currentVertex->nz = sinf(u) * sinf(v);
 
 			// Normalize the results.
 			float dot = 0;
@@ -137,7 +140,7 @@ SCNGeometry *CreateSeashell()
 	[cameraNode addChildNode:spotLightNode];
 
 	// 3. Seashell
-	SCNGeometry *seashellGeometry = CreateSeashell();
+	SCNGeometry *seashellGeometry = CreateBlob();
 	seashellGeometry.firstMaterial = [SCNMaterial material];
 	seashellGeometry.firstMaterial.diffuse.contents = [NSColor redColor];
 	seashellGeometry.firstMaterial.doubleSided = YES;
@@ -146,7 +149,7 @@ SCNGeometry *CreateSeashell()
 	[seashellGeometry getBoundingSphereCenter:nil radius:&radius];
 
 	SCNNode *parent = [SCNNode node];
-	parent.position = SCNVector3Make(0, radius/2, 0);
+	parent.position = SCNVector3Make(0, radius * 2, 0);
 
 	SCNNode *seashellGeometryNode = [SCNNode nodeWithGeometry:seashellGeometry];
 	seashellGeometryNode.pivot = CATransform3DMakeTranslation(0, 0, radius);
